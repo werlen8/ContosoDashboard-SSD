@@ -119,7 +119,7 @@ Constant strings: `ProjectDocuments = "Project Documents"`, `TeamResources = "Te
 
 - **UserContext** `record(int UserId, UserRole Role, string? Department)` — built from claims (`NameIdentifier`, `Role`, `Department`) via `ClaimsPrincipal.ToUserContext()`.
 - **DocumentPermissions** `record(bool CanView, bool CanEditMetadata, bool CanReplace, bool CanDelete, bool CanShare)`.
-- **DocumentListItem** projection: `DocumentId, Title, Category, UploadedDate, FileSizeBytes, FileType, ProjectId, ProjectName, UploadedByName, Tags, SharedByName?, SharedDate?`.
+- **DocumentListItem** projection: `DocumentId, Title, Category, UploadedDate, FileSizeBytes, FileType, ProjectId, ProjectName, UploadedByUserId, UploadedByName, Tags, SharedByName?, SharedDate?, Permissions` (`DocumentPermissions`, computed by the service for the requesting user so the UI shows only allowed actions).
 - **DocumentListQuery**: `SortBy (Title|UploadedDate|Category|FileSize)`, `Descending`, `Category?`, `ProjectId?`, `From?`, `To?`.
 - **UploadRequest**: `Stream Content, string OriginalFileName, long Size, string Title, string? Description, string Category, int? ProjectId, IReadOnlyList<string> Tags, int? TaskId`.
 - **OperationResult / OperationResult<T>**: `Succeeded`, `Error` (user-facing message), `Value`.
