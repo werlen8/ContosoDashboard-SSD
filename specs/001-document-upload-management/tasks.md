@@ -32,9 +32,9 @@ description: "Task list for Document Upload and Management"
 
 **Purpose**: Repository and configuration scaffolding
 
-- [ ] T001 Add the line `ContosoDashboard/AppData/` to `.gitignore` so uploaded files are never committed
-- [ ] T002 [P] Add configuration sections to `ContosoDashboard/appsettings.json`: `"FileStorage": { "RootPath": "AppData/uploads" }` and `"MalwareScanning": { "BlockedPatterns": [] }`
-- [ ] T003 [P] Create the xUnit test project `ContosoDashboard.Tests/ContosoDashboard.Tests.csproj` targeting `net9.0`:
+- [X] T001 Add the line `ContosoDashboard/AppData/` to `.gitignore` so uploaded files are never committed
+- [X] T002 [P] Add configuration sections to `ContosoDashboard/appsettings.json`: `"FileStorage": { "RootPath": "AppData/uploads" }` and `"MalwareScanning": { "BlockedPatterns": [] }`
+- [X] T003 [P] Create the xUnit test project `ContosoDashboard.Tests/ContosoDashboard.Tests.csproj` targeting `net9.0`:
   - Packages: `Microsoft.NET.Test.Sdk`, `xunit`, `xunit.runner.visualstudio`.
   - `<ProjectReference Include="..\ContosoDashboard\ContosoDashboard.csproj" />`.
   - Verify that `dotnet test ContosoDashboard.Tests` runs with 0 tests.
@@ -51,10 +51,10 @@ All four new entities are created here because they share one `EnsureCreated` sc
 
 ### Entities & schema
 
-- [ ] T004 [P] Create `ContosoDashboard/Models/DocumentCategories.cs`:
+- [X] T004 [P] Create `ContosoDashboard/Models/DocumentCategories.cs`:
   - A static class with constants `ProjectDocuments = "Project Documents"`, `TeamResources = "Team Resources"`, `PersonalFiles = "Personal Files"`, `Reports = "Reports"`, `Presentations = "Presentations"`, `Other = "Other"`.
   - `IReadOnlyList<string> All` in that display order.
-- [ ] T005 [P] Create `ContosoDashboard/Models/Document.cs` with these fields:
+- [X] T005 [P] Create `ContosoDashboard/Models/Document.cs` with these fields:
 
   | Field | Type and constraints |
   |-------|----------------------|
@@ -73,13 +73,13 @@ All four new entities are created here because they share one `EnsureCreated` sc
   | `UpdatedDate` | DateTime |
 
   Navigations: `UploadedByUser`, `Project?`, `ICollection<DocumentShare> Shares`, `ICollection<TaskDocument> TaskDocuments`.
-- [ ] T006 [P] Create `ContosoDashboard/Models/DocumentShare.cs`:
+- [X] T006 [P] Create `ContosoDashboard/Models/DocumentShare.cs`:
   - Fields: `DocumentShareId`, `DocumentId`, `SharedWithUserId`, `SharedByUserId`, `SharedDate`, `SharedViaDepartment` (`[MaxLength(100)]`, nullable).
   - Navigations: `Document`, `SharedWithUser`, `SharedByUser`.
-- [ ] T007 [P] Create `ContosoDashboard/Models/TaskDocument.cs`:
+- [X] T007 [P] Create `ContosoDashboard/Models/TaskDocument.cs`:
   - Fields: `TaskDocumentId`, `TaskId`, `DocumentId`, `AttachedByUserId`, `AttachedDate`.
   - Navigations: `Task` (TaskItem), `Document`, `AttachedByUser`.
-- [ ] T008 [P] Create `ContosoDashboard/Models/DocumentActivity.cs`:
+- [X] T008 [P] Create `ContosoDashboard/Models/DocumentActivity.cs`:
   - Fields:
     - `DocumentActivityId`;
     - `DocumentId` (int, required, **no FK / no navigation**);
@@ -90,12 +90,12 @@ All four new entities are created here because they share one `EnsureCreated` sc
     - `Details` (`[MaxLength(500)]`, nullable);
     - `OccurredAt`.
   - Static class `DocumentActions` with constants `Upload`, `Download`, `Preview`, `EditMetadata`, `ReplaceFile`, `Delete`, `Share`, `RevokeShare`, `AttachToTask`.
-- [ ] T009 [P] Append `DocumentShared` and `DocumentAdded` to the **end** of `enum NotificationType` in `ContosoDashboard/Models/Notification.cs`. Existing integer values must not change.
-- [ ] T010 Add navigation collections in `ContosoDashboard/Models/User.cs`, `Project.cs`, `TaskItem.cs` (depends on T005, T007):
+- [X] T009 [P] Append `DocumentShared` and `DocumentAdded` to the **end** of `enum NotificationType` in `ContosoDashboard/Models/Notification.cs`. Existing integer values must not change.
+- [X] T010 Add navigation collections in `ContosoDashboard/Models/User.cs`, `Project.cs`, `TaskItem.cs` (depends on T005, T007):
   - `ICollection<Document> UploadedDocuments` in `ContosoDashboard/Models/User.cs`;
   - `ICollection<Document> Documents` in `ContosoDashboard/Models/Project.cs`;
   - `ICollection<TaskDocument> TaskDocuments` in `ContosoDashboard/Models/TaskItem.cs`.
-- [ ] T011 Update `ContosoDashboard/Data/ApplicationDbContext.cs` (depends on T004–T010):
+- [X] T011 Update `ContosoDashboard/Data/ApplicationDbContext.cs` (depends on T004–T010):
   - **DbSets**: `Documents`, `DocumentShares`, `TaskDocuments`, `DocumentActivities`.
   - **Delete behavior**:
     - Document → User (`UploadedByUserId`): `Restrict`. Document → Project: `Restrict`.
@@ -111,18 +111,18 @@ All four new entities are created here because they share one `EnsureCreated` sc
 
 ### Identity
 
-- [ ] T012 [P] Create `ContosoDashboard/Services/UserContext.cs`:
+- [X] T012 [P] Create `ContosoDashboard/Services/UserContext.cs`:
   - `public sealed record UserContext(int UserId, UserRole Role, string? Department)` with a helper `bool IsAtLeast(UserRole role)` that follows the hierarchy Employee < TeamLead < ProjectManager < Administrator.
   - Static extension `ClaimsPrincipal.ToUserContext()` that reads `ClaimTypes.NameIdentifier`, `ClaimTypes.Role` (parsed into `UserRole`) and the `"Department"` claim (empty string → null). It throws `InvalidOperationException` when the user id is missing.
-- [ ] T013 [P] Add `new Claim("Department", user.Department ?? string.Empty)` to the claims list in `ContosoDashboard/Pages/Login.cshtml.cs` (required for Team Lead rules, research R7)
+- [X] T013 [P] Add `new Claim("Department", user.Department ?? string.Empty)` to the claims list in `ContosoDashboard/Pages/Login.cshtml.cs` (required for Team Lead rules, research R7)
 
 ### Infrastructure abstractions
 
-- [ ] T014 [P] Create `ContosoDashboard/Services/Storage/IFileStorageService.cs` with exactly these signatures from [contracts/service-interfaces.md](./contracts/service-interfaces.md):
+- [X] T014 [P] Create `ContosoDashboard/Services/Storage/IFileStorageService.cs` with exactly these signatures from [contracts/service-interfaces.md](./contracts/service-interfaces.md):
   - `Task<string> UploadAsync(Stream content, string storagePath, string contentType, CancellationToken ct = default)`
   - `Task<Stream> DownloadAsync(string storagePath, CancellationToken ct = default)`
   - `Task DeleteAsync(string storagePath, CancellationToken ct = default)`
-- [ ] T015 Implement `ContosoDashboard/Services/Storage/LocalFileStorageService.cs` (depends on T014):
+- [X] T015 Implement `ContosoDashboard/Services/Storage/LocalFileStorageService.cs` (depends on T014):
   - **Root**: read `FileStorage:RootPath` from `IConfiguration` (default `AppData/uploads`) and resolve it against `IWebHostEnvironment.ContentRootPath`.
   - **Path safety**: build the full path with `Path.GetFullPath(Path.Combine(root, storagePath))` and throw `InvalidOperationException` if the result is not under the root.
   - **Writing**: create directories as needed; write with `FileMode.CreateNew`.
@@ -130,12 +130,12 @@ All four new entities are created here because they share one `EnsureCreated` sc
   - **Deleting**: `DeleteAsync` does nothing if the file is missing.
   - **Return value**: the relative path with forward slashes.
   - Use only `System.IO`.
-- [ ] T016 [P] Create `ContosoDashboard/Services/Scanning/IMalwareScanner.cs` with `Task<ScanResult> ScanAsync(Stream content, CancellationToken ct = default)` and `public sealed record ScanResult(bool IsClean, string? Reason)`
-- [ ] T017 Implement `ContosoDashboard/Services/Scanning/SignatureMalwareScanner.cs` (depends on T016):
+- [X] T016 [P] Create `ContosoDashboard/Services/Scanning/IMalwareScanner.cs` with `Task<ScanResult> ScanAsync(Stream content, CancellationToken ct = default)` and `public sealed record ScanResult(bool IsClean, string? Reason)`
+- [X] T017 Implement `ContosoDashboard/Services/Scanning/SignatureMalwareScanner.cs` (depends on T016):
   - Scan the stream bytes for the EICAR test string `X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*` and for every ASCII pattern in `MalwareScanning:BlockedPatterns` (`IConfiguration`).
   - Return `IsClean=false` with the matched reason.
   - Leave exceptions unhandled; the caller fails closed.
-- [ ] T018 [P] Create the static class `ContosoDashboard/Services/DocumentFileRules.cs` (research R3):
+- [X] T018 [P] Create the static class `ContosoDashboard/Services/DocumentFileRules.cs` (research R3):
   - `MaxFileSizeBytes = 26_214_400`.
   - Extension whitelist (`.pdf .doc .docx .xls .xlsx .ppt .pptx .txt .jpg .jpeg .png`), case-insensitive.
   - Canonical MIME map per extension; the OOXML types use the full `application/vnd.openxmlformats-officedocument.*` names.
@@ -150,7 +150,7 @@ All four new entities are created here because they share one `EnsureCreated` sc
 
 ### DocumentService skeleton & central authorization
 
-- [ ] T019 Create `ContosoDashboard/Services/DocumentService.cs` with the shared types and the `IDocumentService` interface containing **only** `GetDocumentAsync` and `GetPermissionsAsync` for now (later stories add their methods to the interface).
+- [X] T019 Create `ContosoDashboard/Services/DocumentService.cs` with the shared types and the `IDocumentService` interface containing **only** `GetDocumentAsync` and `GetPermissionsAsync` for now (later stories add their methods to the interface).
   - **Records and enums**:
     - `DocumentPermissions(bool CanView, bool CanEditMetadata, bool CanReplace, bool CanDelete, bool CanShare)`
     - `DocumentListItem`, with the fields listed in [data-model.md](./data-model.md), including `UploadedByUserId` and `Permissions`
@@ -162,20 +162,20 @@ All four new entities are created here because they share one `EnsureCreated` sc
     - `DocumentActivityReport`
   - **Class constructor**: `ApplicationDbContext`, `IFileStorageService`, `IMalwareScanner`, `INotificationService`, `ITaskService`, `ILogger<DocumentService>`.
   - **Constant**: `NotFoundMessage = "Document not found or you do not have access."`.
-- [ ] T020 [P] Create the test helper `ContosoDashboard.Tests/TestDb.cs`:
+- [X] T020 [P] Create the test helper `ContosoDashboard.Tests/TestDb.cs`:
   - Open a SQLite in-memory connection (`DataSource=:memory:`) and keep it open for the test's lifetime, then call `EnsureCreated`, which brings in seed users 1–5 and project 1.
   - Helper methods: `AddUser(role, department)`, `AddProject(managerId, memberIds)`, `AddDocument(...)` (inserts a row directly).
   - `UserContext For(int userId)`.
   - A `CreateDocumentService(IFileStorageService? storage = null, IMalwareScanner? scanner = null)` factory that wires the real `NotificationService` and `TaskService`.
-- [ ] T021 [P] Create `ContosoDashboard.Tests/FakeFileStorageService.cs`:
+- [X] T021 [P] Create `ContosoDashboard.Tests/FakeFileStorageService.cs`:
   - An in-memory `Dictionary<string, byte[]>` implementing `IFileStorageService`.
   - Flags `ThrowOnUpload` and `ThrowOnDelete`.
   - Exposes `Files` so tests can make assertions about stored files.
-- [ ] T022 Write `ContosoDashboard.Tests/DocumentAuthorizationTests.cs` (depends on T019–T021; write before T023 and confirm it fails). Cover the whole FR-016 table:
+- [X] T022 Write `ContosoDashboard.Tests/DocumentAuthorizationTests.cs` (depends on T019–T021; write before T023 and confirm it fails). Cover the whole FR-016 table:
   - **Actors**: owner, project member, Project Manager of the document's project, Team Lead in the uploader's department (non-Personal document), Team Lead with a Personal Files document (denied), share recipient, Administrator, unrelated user (seed user 5).
   - **Assertions**: each actor gets exactly the expected `DocumentPermissions`, and the `AccessibleDocuments` filter returns exactly the visible set.
   - **Edge cases**: a Team Lead whose department is null sees no team documents; a ProjectManager role in the same department as the uploader gets the Team Lead rights (research R7).
-- [ ] T023 Implement in `ContosoDashboard/Services/DocumentService.cs` (depends on T022):
+- [X] T023 Implement in `ContosoDashboard/Services/DocumentService.cs` (depends on T022):
   - **`private IQueryable<Document> AccessibleDocuments(UserContext user)`** — visible when any of these is true:
     - the user is an Administrator;
     - the user is the uploader;
@@ -195,7 +195,7 @@ All four new entities are created here because they share one `EnsureCreated` sc
     - `GetDocumentAsync`: query through `AccessibleDocuments`, `Include` the Project and UploadedByUser;
     - `GetPermissionsAsync`: return all-false when the document is not visible.
   - Make T022 pass.
-- [ ] T024 Register services and endpoints in `ContosoDashboard/Program.cs`:
+- [X] T024 Register services and endpoints in `ContosoDashboard/Program.cs`:
   - `IFileStorageService → LocalFileStorageService` (singleton), `IMalwareScanner → SignatureMalwareScanner` (singleton), `IDocumentService → DocumentService` (scoped).
   - Add `app.MapRazorPages();` before `app.MapFallbackToPage("/_Host");` if it isn't there yet. The file endpoint (and Login) must be routable Razor Pages.
   - Do not change the security headers middleware.
@@ -215,7 +215,7 @@ All four new entities are created here because they share one `EnsureCreated` sc
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T025 [P] [US1] Write `ContosoDashboard.Tests/DocumentUploadTests.cs`. It uses `FakeFileStorageService` and a stub scanner.
+- [X] T025 [P] [US1] Write `ContosoDashboard.Tests/DocumentUploadTests.cs`. It uses `FakeFileStorageService` and a stub scanner.
   - **Valid upload**: creates exactly one `Document` row and one stored file whose path matches `^{uploaderId}/(personal|{projectId})/[0-9a-f]{32}\.pdf$`. `FileType` is the canonical MIME type even when the client claimed `text/html`. One `Upload` activity is written.
   - **Size limits**: 26,214,400 bytes is accepted. 26,214,401 bytes is rejected ("File exceeds the 25 MB limit."), as is 0 bytes ("File is empty.").
   - **Type checks**: `.exe` is rejected ("Unsupported file type. …"), and so is a `.pdf` whose bytes are `MZ…` ("File content does not match its type.").
@@ -225,7 +225,7 @@ All four new entities are created here because they share one `EnsureCreated` sc
   - **Metadata validation**: title empty or longer than 200 characters → rejected; 11 tags → rejected; tags are normalized.
   - **Rollback**: when the DB save fails (simulate by disposing the context or setting a title to force a constraint error), the stored file is deleted afterwards.
   - **Rejected uploads**: no row and no stored file are left behind.
-- [ ] T026 [P] [US1] Write `ContosoDashboard.Tests/DocumentListTests.cs` for `GetMyDocumentsAsync`:
+- [X] T026 [P] [US1] Write `ContosoDashboard.Tests/DocumentListTests.cs` for `GetMyDocumentsAsync`:
   - Only the user's own uploads are returned.
   - Sorting works for Title, UploadedDate, Category and FileSize, in both directions.
   - Filters work by category, project, and the `From`/`To` date range (inclusive).
@@ -233,7 +233,7 @@ All four new entities are created here because they share one `EnsureCreated` sc
 
 ### Implementation for User Story 1
 
-- [ ] T027 [US1] Add `Task<OperationResult<int>> UploadAsync(UploadRequest request, UserContext user)` to `IDocumentService` and implement it in `ContosoDashboard/Services/DocumentService.cs`, in this order:
+- [X] T027 [US1] Add `Task<OperationResult<int>> UploadAsync(UploadRequest request, UserContext user)` to `IDocumentService` and implement it in `ContosoDashboard/Services/DocumentService.cs`, in this order:
   1. Validate metadata: title trimmed, 1–200 characters; category in `DocumentCategories.All`; description ≤ 2000; tags via `NormalizeTags`.
   2. Apply the Personal Files rule: a Personal Files document cannot have a ProjectId (FR-010a).
   3. Check project access: unless the user is an Administrator, they must be the project's manager or a member (FR-010).
@@ -245,12 +245,12 @@ All four new entities are created here because they share one `EnsureCreated` sc
   9. In a `catch`, call `DeleteAsync(path)`, log the error, and return the failure message.
 
   Ignore `request.TaskId` for now; US6 implements it.
-- [ ] T028 [US1] Add `Task<List<DocumentListItem>> GetMyDocumentsAsync(UserContext user, DocumentListQuery query)` to `IDocumentService` and implement it in `ContosoDashboard/Services/DocumentService.cs`:
+- [X] T028 [US1] Add `Task<List<DocumentListItem>> GetMyDocumentsAsync(UserContext user, DocumentListQuery query)` to `IDocumentService` and implement it in `ContosoDashboard/Services/DocumentService.cs`:
   - Filter to `UploadedByUserId == user.UserId`, plus the optional Category, ProjectId and date-range filters.
   - Sort in SQL.
   - Project into `DocumentListItem` using a `Select` (no `Include` N+1).
   - Fill `Permissions` using `GetPermissions`.
-- [ ] T029 [P] [US1] Create `ContosoDashboard/Shared/DocumentUploadDialog.razor` (Bootstrap modal).
+- [X] T029 [P] [US1] Create `ContosoDashboard/Shared/DocumentUploadDialog.razor` (Bootstrap modal).
   - **Parameters**: `int? FixedProjectId`, `int? TaskId`, `EventCallback OnUploaded`.
   - **Inputs**: `<InputFile multiple @key="inputKey" OnChange=…>`; a per-file editable title, defaulting to the file name without extension; shared fields Category (`DocumentCategories.All`, required), Description, Tags (comma-separated text) and Project.
     - Project options come from `IProjectService.GetUserProjectsAsync`. The field is locked when `FixedProjectId` is set.
@@ -262,12 +262,12 @@ All four new entities are created here because they share one `EnsureCreated` sc
     3. Set `Position = 0`, drop the `IBrowserFile` reference, and call `UploadAsync`.
   - **Result**: show a success or error message for each file. After the batch, regenerate `inputKey` and invoke `OnUploaded`.
   - **Click budget**: no more than 3 clicks — Upload → choose files → Submit (FR-011).
-- [ ] T030 [P] [US1] Create `ContosoDashboard/Shared/DocumentList.razor`:
+- [X] T030 [P] [US1] Create `ContosoDashboard/Shared/DocumentList.razor`:
   - **Parameters**: `List<DocumentListItem> Items` plus show/hide flags for the Project, Uploader and Shared-by columns.
   - **Table**: Bootstrap responsive table with Title, Category, Uploaded (local date/time), Size (human-readable KB/MB), Project and Uploader.
   - **Empty state**: shows a configurable message.
   - **Action buttons**: leave an `ActionsTemplate` (`RenderFragment<DocumentListItem>`) slot; later stories fill it.
-- [ ] T031 [US1] Create `ContosoDashboard/Pages/Documents.razor` with `@page "/documents"` and `@attribute [Authorize]`.
+- [X] T031 [US1] Create `ContosoDashboard/Pages/Documents.razor` with `@page "/documents"` and `@attribute [Authorize]`.
   - Resolve `UserContext` from `AuthenticationStateProvider` using `ToUserContext()`.
   - Add Bootstrap nav tabs. The "My Documents" tab has:
     - sort select and asc/desc toggle;
@@ -275,7 +275,7 @@ All four new entities are created here because they share one `EnsureCreated` sc
     - an "Upload" button that opens `DocumentUploadDialog`;
     - a `DocumentList`.
   - Reload the list after upload or when filters change.
-- [ ] T032 [P] [US1] Add a `NavLink href="documents"` entry labelled "Documents" with the `bi-file-earmark-text` icon to `ContosoDashboard/Shared/NavMenu.razor`, after Projects
+- [X] T032 [P] [US1] Add a `NavLink href="documents"` entry labelled "Documents" with the `bi-file-earmark-text` icon to `ContosoDashboard/Shared/NavMenu.razor`, after Projects
 
 **Checkpoint**: T025–T026 green. Quickstart V1–V6 and V8 pass (the search part of V6 waits for US4; use My Documents views instead).
 
@@ -289,7 +289,7 @@ All four new entities are created here because they share one `EnsureCreated` sc
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T033 [P] [US2] Write `ContosoDashboard.Tests/DocumentManageTests.cs`:
+- [X] T033 [P] [US2] Write `ContosoDashboard.Tests/DocumentManageTests.cs`:
   - **`OpenFileAsync`**:
     - returns content plus the original file name for viewers, and `null` for non-viewers;
     - `Preview` works for PDF/PNG/JPEG and returns `null` for DOCX;
@@ -309,26 +309,26 @@ All four new entities are created here because they share one `EnsureCreated` sc
 
 ### Implementation for User Story 2
 
-- [ ] T034 [US2] Add `Task<DocumentFile?> OpenFileAsync(int documentId, UserContext user, FileAccessMode mode)` to `IDocumentService` and implement it in `ContosoDashboard/Services/DocumentService.cs`:
+- [X] T034 [US2] Add `Task<DocumentFile?> OpenFileAsync(int documentId, UserContext user, FileAccessMode mode)` to `IDocumentService` and implement it in `ContosoDashboard/Services/DocumentService.cs`:
   - Require `CanView`.
   - `Preview` is allowed only when `DocumentFileRules.IsPreviewable(FileType)`.
   - Call `storage.DownloadAsync`; on `FileNotFoundException`, log it and return null.
   - Write a `Download` or `Preview` activity, save, then return a `DocumentFile` with `Inline = mode == Preview`.
-- [ ] T035 [US2] Add `UpdateMetadataAsync(int documentId, DocumentMetadataUpdate update, UserContext user)` to `IDocumentService` and implement it in `ContosoDashboard/Services/DocumentService.cs`:
+- [X] T035 [US2] Add `UpdateMetadataAsync(int documentId, DocumentMetadataUpdate update, UserContext user)` to `IDocumentService` and implement it in `ContosoDashboard/Services/DocumentService.cs`:
   - Require `CanEditMetadata`.
   - Validate with the same rules as an upload.
   - `ProjectId` changes are owner-only and must pass FR-010 and FR-010a.
   - Set `UpdatedDate` and write an `EditMetadata` activity.
-- [ ] T036 [US2] Add `ReplaceFileAsync(int documentId, Stream content, string originalFileName, long size, UserContext user)` to `IDocumentService` and implement it in `ContosoDashboard/Services/DocumentService.cs`:
+- [X] T036 [US2] Add `ReplaceFileAsync(int documentId, Stream content, string originalFileName, long size, UserContext user)` to `IDocumentService` and implement it in `ContosoDashboard/Services/DocumentService.cs`:
   - Require `CanReplace` (owner only).
   - Run the same file validation and scan as an upload. Reuse a private `ValidateAndScanAsync` extracted from T027.
   - Store the file under a new GUID path (same folder pattern), then update `FilePath`, `OriginalFileName`, `FileType`, `FileSizeBytes` and `UpdatedDate`, write a `ReplaceFile` activity, and save.
   - If the save fails, delete the new file. If it succeeds, delete the old file (best effort; log failures).
-- [ ] T037 [US2] Add `DeleteAsync(int documentId, UserContext user)` to `IDocumentService` and implement it in `ContosoDashboard/Services/DocumentService.cs`:
+- [X] T037 [US2] Add `DeleteAsync(int documentId, UserContext user)` to `IDocumentService` and implement it in `ContosoDashboard/Services/DocumentService.cs`:
   - Require `CanDelete`.
   - Write a `Delete` activity (title and type snapshot), remove the `Document` so shares and task links cascade, and save.
   - Then delete the stored file (best effort; log failures).
-- [ ] T038 [P] [US2] Create `ContosoDashboard/Pages/DocumentFile.cshtml` and `DocumentFile.cshtml.cs`:
+- [X] T038 [P] [US2] Create `ContosoDashboard/Pages/DocumentFile.cshtml` and `DocumentFile.cshtml.cs`:
   - Route `@page "/documents/{id:int}/file"`, with `[Authorize]` on the PageModel.
   - **`OnGetAsync(int id, string? mode)`**:
     - `mode` is `null` or `"download"` → Download, `"preview"` → Preview, anything else → `BadRequest()`.
@@ -338,14 +338,14 @@ All four new entities are created here because they share one `EnsureCreated` sc
   - **Download**: `File(stream, contentType, fileName)`.
   - **Preview**: `File(stream, contentType)` with a `Content-Disposition: inline; filename*=UTF-8''…` header built via `ContentDispositionHeaderValue`.
   - Do not touch the global security headers.
-- [ ] T039 [P] [US2] Create `ContosoDashboard/Shared/ConfirmDialog.razor`: a Bootstrap modal with parameters `string Message`, `bool Visible`, `EventCallback<bool> OnClose`, and Cancel / Delete buttons (FR-026)
-- [ ] T040 [P] [US2] Create `ContosoDashboard/Shared/DocumentEditDialog.razor`:
+- [X] T039 [P] [US2] Create `ContosoDashboard/Shared/ConfirmDialog.razor`: a Bootstrap modal with parameters `string Message`, `bool Visible`, `EventCallback<bool> OnClose`, and Cancel / Delete buttons (FR-026)
+- [X] T040 [P] [US2] Create `ContosoDashboard/Shared/DocumentEditDialog.razor`:
   - **Parameters**: `int DocumentId`, `EventCallback OnSaved`.
   - **Loading**: fetch the document with `GetDocumentAsync`, and get `GetPermissionsAsync` for the current user.
   - **Edit form**: Title, Description, Category, Tags, plus Project (shown only when `CanReplace`, i.e. for the owner, and filtered by the Personal Files rule).
   - **"Replace file" section**: shown only when `CanReplace`. It uses a single `InputFile` with the same capture-metadata → `MemoryStream` → clear-reference pattern as T029.
   - **Errors**: show service errors verbatim.
-- [ ] T041 [US2] Wire actions into `DocumentList` through an `ActionsTemplate` in `ContosoDashboard/Pages/Documents.razor` (depends on T034–T040). Each button is shown only when `item.Permissions` allows it:
+- [X] T041 [US2] Wire actions into `DocumentList` through an `ActionsTemplate` in `ContosoDashboard/Pages/Documents.razor` (depends on T034–T040). Each button is shown only when `item.Permissions` allows it:
   - **Preview**:
     - PDF → `<a target="_blank" rel="noopener" href="/documents/{id}/file?mode=preview">`;
     - JPEG/PNG → open an image modal containing `<img src="/documents/{id}/file?mode=preview">`.
@@ -366,21 +366,21 @@ All four new entities are created here because they share one `EnsureCreated` sc
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T042 [P] [US3] Write `ContosoDashboard.Tests/ProjectDocumentTests.cs`:
+- [X] T042 [P] [US3] Write `ContosoDashboard.Tests/ProjectDocumentTests.cs`:
   - **Listing**: `GetProjectDocumentsAsync` returns every project document for the PM, members and an Administrator, and an empty list for a non-member (Avery).
   - **Notifications**: an upload with `ProjectId` creates exactly one `DocumentAdded` notification for each of the project manager and members, excluding the uploader. Setting `ProjectId` through `UpdateMetadataAsync` notifies the same way.
   - **Delete rights**: the PM can delete a member's document; a member cannot delete another member's document.
 
 ### Implementation for User Story 3
 
-- [ ] T043 [US3] Add `GetProjectDocumentsAsync(int projectId, UserContext user)` to `IDocumentService` and implement it in `ContosoDashboard/Services/DocumentService.cs`:
+- [X] T043 [US3] Add `GetProjectDocumentsAsync(int projectId, UserContext user)` to `IDocumentService` and implement it in `ContosoDashboard/Services/DocumentService.cs`:
   - Return an empty list unless the user is an Administrator or the project's manager or a member.
   - Otherwise return `AccessibleDocuments(user).Where(d => d.ProjectId == projectId)` projected to `DocumentListItem`, with permissions.
-- [ ] T044 [US3] Add `private Task NotifyProjectDocumentAddedAsync(Document doc, int actorUserId)` in `ContosoDashboard/Services/DocumentService.cs`:
+- [X] T044 [US3] Add `private Task NotifyProjectDocumentAddedAsync(Document doc, int actorUserId)` in `ContosoDashboard/Services/DocumentService.cs`:
   - Recipients: the project manager plus all `ProjectMembers`, excluding the actor, de-duplicated.
   - For each, call `INotificationService.CreateNotificationAsync` with `Type = NotificationType.DocumentAdded`, `Priority = Informational`, `Title = "New project document"` and `Message = $"\"{doc.Title}\" was added to {project.Name}."`.
   - Call it after a successful save in `UploadAsync` and in `UpdateMetadataAsync` when `ProjectId` changes from null or another value to a project.
-- [ ] T045 [US3] Add a "Documents" card to `ContosoDashboard/Pages/ProjectDetails.razor`:
+- [X] T045 [US3] Add a "Documents" card to `ContosoDashboard/Pages/ProjectDetails.razor`:
   - Inject `IDocumentService`.
   - List documents with `DocumentList` (Uploader column on).
   - Add an "Upload" button that opens `DocumentUploadDialog` with `FixedProjectId = projectId`; it is visible to the PM and members.
@@ -701,6 +701,12 @@ After the MVP, one developer owns `DocumentService.cs` and merges service tasks 
 ---
 
 ## Notes
+
+**Implementation notes (T001–T045)**:
+- `ITaskService` is not injected into `DocumentService` yet. It is only needed by US6, so T055/T056 add it to the constructor and to `TestDb.CreateDocumentService`.
+- Row actions (preview, download, edit, delete) live inside `Shared/DocumentList.razor`, not in an `ActionsTemplate`, so `Documents.razor` and `ProjectDetails.razor` share them without duplicating code. Later stories add actions (e.g. Share) there.
+- `UploadRequest` has no `Size` or `TaskId` field, and `ReplaceFileAsync` has no `size` parameter: the size is read from the seekable stream. `TaskId` (and the upload dialog's `TaskId` parameter) arrive with T056/T057.
+- `app.MapRazorPages()` was missing from `Program.cs`. T024 added it so the `/documents/{id}/file` Razor Page is routable; `/login` and `/logout` are now explicitly mapped as well.
 
 - Every task names an exact file path. Constraints from data-model.md are quoted in the task text.
 - [P] means a different file with no unfinished dependency.

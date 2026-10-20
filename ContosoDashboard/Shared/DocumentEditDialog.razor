@@ -1,0 +1,222 @@
+@inject IDocumentService DocumentService
+@inject IProjectService ProjectService
+
+@if (Visible)
+{
+    <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="editDialogTitle">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editDialogTitle">Edit document</h5>
+                    <button type="button" class="btn-close" aria-label="Close" disabled="@busy" @onclick="CloseAsync"></button>
+                </div>
+                <div class="modal-body">
+                    @if (document == null)
+                    {
+                        <p class="text-muted mb-0">@(loaded ? DocumentMessages.NotFound : "Loading...")</p>
+                    }
+                    else
+                    {
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label" for="editTitle">Title *</label>
+                                <input id="editTitle" class="form-control" maxlength="200" @bind="title" disabled="@busy" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="editCategory">Category *</label>
+                                <select id="editCategory" class="form-select" @bind="category" disabled="@busy">
+                                    @foreach (var c in DocumentCategories.All)
+                                    {
+                                        <option value="@c" disabled="@(c == DocumentCategories.PersonalFiles && projectId != null)">@c</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="editProject">Project</label>
+                                <select id="editProject" class="form-select" @bind="projectId"
+                                        disabled="@(busy || !permissions.CanReplace || category == DocumentCategories.PersonalFiles)">
+                                    <option value="">None</option>
+                                    @foreach (var p in projectOptions)
+                                    {
+                                        <option value="@p.Id">@p.Name</option>
+                                    }
+                                </select>
+                                @if (!permissions.CanReplace)
+                                {
+                                    <div class="form-text">Only the owner can change the project.</div>
+                                }
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="editDescription">Description</label>
+                                <textarea id="editDescription" class="form-control" rows="2" maxlength="2000" @bind="description" disabled="@busy"></textarea>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="editTags">Tags</label>
+                                <input id="editTags" class="form-control" @bind="tagsText" disabled="@busy" />
+                                <div class="form-text">Comma-separated, up to 10 tags.</div>
+                            </div>
+                        </div>
+
+                        @if (permissions.CanReplace)
+                        {
+                            <hr />
+                            <h6>Replace file</h6>
+                            <p class="small text-muted mb-2">Current file: @document.OriginalFileName (@DocumentList.FormatSize(document.FileSizeBytes)). The old file is overwritten; no version history is kept.</p>
+                            <div class="input-group">
+                                <InputFile @key="inputKey" class="form-control" OnChange="OnReplacementSelected" disabled="@busy"
+                                           accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png" />
+                                <button class="btn btn-outline-primary" disabled="@(busy || replacement == null)" @onclick="ReplaceAsync">Replace</button>
+                            </div>
+                        }
+
+                        @if (message != null)
+                        {
+                            <div class="alert @(messageIsError ? "alert-danger" : "alert-success") mt-3 mb-0">@message</div>
+                        }
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" disabled="@busy" @onclick="CloseAsync">Close</button>
+                    <button type="button" class="btn btn-primary" disabled="@(busy || document == null)" @onclick="SaveAsync">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop show"></div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public int DocumentId { get; set; }
+    [Parameter, EditorRequired] public UserContext User { get; set; } = null!;
+    // Invoked with true when the document was changed.
+    [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+    private Document? document;
+    private DocumentPermissions permissions = DocumentPermissions.None;
+    private List<(int Id, string Name)> projectOptions = new();
+    private int loadedId;
+    private bool loaded;
+    private bool busy;
+    private bool changed;
+    private string? message;
+    private bool messageIsError;
+    private Guid inputKey = Guid.NewGuid();
+    private IBrowserFile? replacement;
+
+    private string title = string.Empty;
+    private string category = DocumentCategories.Other;
+    private string? description;
+    private string? tagsText;
+    private int? projectId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!Visible || DocumentId == loadedId) return;
+
+        loadedId = DocumentId;
+        loaded = false;
+        document = await DocumentService.GetDocumentAsync(DocumentId, User);
+        permissions = await DocumentService.GetPermissionsAsync(DocumentId, User);
+        loaded = true;
+        if (document == null) return;
+
+        title = document.Title;
+        category = document.Category;
+        description = document.Description;
+        tagsText = document.Tags?.Replace(",", ", ");
+        projectId = document.ProjectId;
+
+        projectOptions = permissions.CanReplace
+            ? (await ProjectService.GetUserProjectsAsync(User.UserId)).Select(p => (p.ProjectId, p.Name)).ToList()
+            : new();
+        if (document.Project != null && projectOptions.All(p => p.Id != document.Project.ProjectId))
+            projectOptions.Insert(0, (document.Project.ProjectId, document.Project.Name));
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        var tags = (tagsText ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var result = await DocumentService.UpdateMetadataAsync(DocumentId,
+            new DocumentMetadataUpdate(title, description, category, tags,
+                category == DocumentCategories.PersonalFiles ? null : projectId), User);
+        busy = false;
+
+        if (result.Succeeded)
+        {
+            changed = true;
+            await CloseAsync();
+        }
+        else
+        {
+            ShowMessage(result.Error, isError: true);
+        }
+    }
+
+    private void OnReplacementSelected(InputFileChangeEventArgs e)
+    {
+        message = null;
+        replacement = e.File;
+        if (replacement.Size > DocumentFileRules.MaxFileSizeBytes)
+        {
+            ShowMessage(DocumentMessages.TooLarge, isError: true);
+            replacement = null;
+        }
+    }
+
+    private async Task ReplaceAsync()
+    {
+        if (replacement == null) return;
+        busy = true;
+        try
+        {
+            var fileName = replacement.Name;
+            using var buffer = new MemoryStream();
+            await using (var source = replacement.OpenReadStream(DocumentFileRules.MaxFileSizeBytes))
+            {
+                await source.CopyToAsync(buffer);
+            }
+            buffer.Position = 0;
+            replacement = null; // never reuse the browser file reference
+
+            var result = await DocumentService.ReplaceFileAsync(DocumentId, buffer, fileName, User);
+            if (result.Succeeded)
+            {
+                changed = true;
+                document = await DocumentService.GetDocumentAsync(DocumentId, User);
+                ShowMessage("File replaced.", isError: false);
+            }
+            else
+            {
+                ShowMessage(result.Error, isError: true);
+            }
+        }
+        catch (Exception)
+        {
+            ShowMessage("Upload failed. Please try again.", isError: true);
+        }
+        finally
+        {
+            busy = false;
+            inputKey = Guid.NewGuid();
+        }
+    }
+
+    private void ShowMessage(string? text, bool isError)
+    {
+        message = text;
+        messageIsError = isError;
+    }
+
+    private async Task CloseAsync()
+    {
+        var wasChanged = changed;
+        changed = false;
+        loadedId = 0;
+        document = null;
+        message = null;
+        replacement = null;
+        await OnClose.InvokeAsync(wasChanged);
+    }
+}

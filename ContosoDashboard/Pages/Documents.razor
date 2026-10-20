@@ -1,0 +1,142 @@
+@page "/documents"
+@attribute [Authorize]
+@inject IDocumentService DocumentService
+@inject IProjectService ProjectService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Documents - ContosoDashboard</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>My Documents</h1>
+        <button class="btn btn-primary" @onclick="() => showUpload = true" disabled="@(user == null)">
+            <i class="bi bi-upload"></i> Upload
+        </button>
+    </div>
+
+    @if (user == null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-2">
+                        <label class="form-label small" for="sortBy">Sort by</label>
+                        <div class="input-group input-group-sm">
+                            <select id="sortBy" class="form-select" @bind="sortBy" @bind:after="LoadAsync">
+                                <option value="@DocumentSortField.UploadedDate">Upload date</option>
+                                <option value="@DocumentSortField.Title">Title</option>
+                                <option value="@DocumentSortField.Category">Category</option>
+                                <option value="@DocumentSortField.FileSize">File size</option>
+                            </select>
+                            <button class="btn btn-outline-secondary" title="@(descending ? "Descending" : "Ascending")"
+                                    aria-label="Toggle sort direction" @onclick="ToggleDirectionAsync">
+                                <i class="bi @(descending ? "bi-sort-down" : "bi-sort-up")"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small" for="filterCategory">Category</label>
+                        <select id="filterCategory" class="form-select form-select-sm" @bind="filterCategory" @bind:after="LoadAsync">
+                            <option value="">All</option>
+                            @foreach (var c in DocumentCategories.All)
+                            {
+                                <option value="@c">@c</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small" for="filterProject">Project</label>
+                        <select id="filterProject" class="form-select form-select-sm" @bind="filterProjectId" @bind:after="LoadAsync">
+                            <option value="">All</option>
+                            @foreach (var p in projects)
+                            {
+                                <option value="@p.ProjectId">@p.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small" for="filterFrom">From</label>
+                        <input id="filterFrom" type="date" class="form-control form-control-sm" @bind="fromDate" @bind:after="LoadAsync" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small" for="filterTo">To</label>
+                        <input id="filterTo" type="date" class="form-control form-control-sm" @bind="toDate" @bind:after="LoadAsync" />
+                    </div>
+                    <div class="col-md-1">
+                        <button class="btn btn-sm btn-outline-secondary w-100" @onclick="ClearFiltersAsync">Clear</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <DocumentList Items="documents" User="user" OnChanged="LoadAsync" EmptyMessage="You haven't uploaded any documents yet." />
+            </div>
+        </div>
+
+        <DocumentUploadDialog Visible="showUpload" User="user" OnClose="OnUploadClosedAsync" />
+    }
+</div>
+
+@code {
+    private UserContext? user;
+    private List<DocumentListItem> documents = new();
+    private List<Project> projects = new();
+    private bool showUpload;
+
+    private DocumentSortField sortBy = DocumentSortField.UploadedDate;
+    private bool descending = true;
+    private string filterCategory = string.Empty;
+    private int? filterProjectId;
+    private DateTime? fromDate;
+    private DateTime? toDate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        user = authState.User.ToUserContext();
+        projects = await ProjectService.GetUserProjectsAsync(user.UserId);
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (user == null) return;
+        documents = await DocumentService.GetMyDocumentsAsync(user, new DocumentListQuery
+        {
+            SortBy = sortBy,
+            Descending = descending,
+            Category = string.IsNullOrEmpty(filterCategory) ? null : filterCategory,
+            ProjectId = filterProjectId,
+            // Date inputs are local calendar days; the service compares UTC timestamps (both bounds inclusive).
+            From = fromDate?.Date.ToUniversalTime(),
+            To = toDate?.Date.AddDays(1).AddTicks(-1).ToUniversalTime()
+        });
+    }
+
+    private async Task ToggleDirectionAsync()
+    {
+        descending = !descending;
+        await LoadAsync();
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        filterCategory = string.Empty;
+        filterProjectId = null;
+        fromDate = null;
+        toDate = null;
+        await LoadAsync();
+    }
+
+    private async Task OnUploadClosedAsync(bool uploaded)
+    {
+        showUpload = false;
+        if (uploaded) await LoadAsync();
+    }
+}

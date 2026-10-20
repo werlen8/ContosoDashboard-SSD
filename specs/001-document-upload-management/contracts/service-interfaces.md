@@ -36,7 +36,7 @@ public interface IDocumentService
 {
     // Upload & files
     Task<OperationResult<int>> UploadAsync(UploadRequest request, UserContext user);
-    Task<OperationResult> ReplaceFileAsync(int documentId, Stream content, string originalFileName, long size, UserContext user);
+    Task<OperationResult> ReplaceFileAsync(int documentId, Stream content, string originalFileName, UserContext user); // size taken from the stream
     Task<DocumentFile?> OpenFileAsync(int documentId, UserContext user, FileAccessMode mode); // logs Download/Preview; null = not found/denied/preview-not-allowed
 
     // Read

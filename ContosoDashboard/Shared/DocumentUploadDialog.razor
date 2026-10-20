@@ -1,0 +1,257 @@
+@inject IDocumentService DocumentService
+@inject IProjectService ProjectService
+
+@if (Visible)
+{
+    <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="uploadDialogTitle">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="uploadDialogTitle">Upload documents</h5>
+                    <button type="button" class="btn-close" aria-label="Close" disabled="@uploading" @onclick="CloseAsync"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="uploadFiles">Files</label>
+                        <InputFile id="uploadFiles" @key="inputKey" class="form-control" multiple OnChange="OnFilesSelected" disabled="@uploading"
+                                   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png" />
+                        <div class="form-text">PDF, Word, Excel, PowerPoint, TXT, JPEG or PNG. Up to 25 MB each, @MaxFiles files at a time.</div>
+                    </div>
+
+                    @if (files.Count > 0)
+                    {
+                        <ul class="list-group mb-3">
+                            @foreach (var file in files)
+                            {
+                                <li class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <small class="text-muted text-truncate">@file.Name (@DocumentList.FormatSize(file.Size))</small>
+                                        @if (file.Succeeded)
+                                        {
+                                            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Uploaded</span>
+                                        }
+                                    </div>
+                                    <input class="form-control form-control-sm" aria-label="Title for @file.Name" maxlength="200"
+                                           @bind="file.Title" disabled="@(uploading || file.Succeeded)" />
+                                    @if (file.Progress > 0 && !file.Succeeded && file.Error == null)
+                                    {
+                                        <div class="progress mt-2" role="progressbar" aria-label="Upload progress" aria-valuenow="@file.Progress" aria-valuemin="0" aria-valuemax="100">
+                                            <div class="progress-bar" style="width: @(file.Progress)%">@(file.Progress)%</div>
+                                        </div>
+                                    }
+                                    @if (file.Error != null)
+                                    {
+                                        <div class="text-danger small mt-1"><i class="bi bi-exclamation-circle"></i> @file.Error</div>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="uploadCategory">Category *</label>
+                            <select id="uploadCategory" class="form-select" @bind="category" disabled="@uploading">
+                                <option value="">Choose a category…</option>
+                                @foreach (var c in DocumentCategories.All)
+                                {
+                                    <option value="@c" disabled="@(c == DocumentCategories.PersonalFiles && EffectiveProjectId != null)">@c</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="uploadProject">Project</label>
+                            <select id="uploadProject" class="form-select" @bind="projectId"
+                                    disabled="@(uploading || FixedProjectId != null || category == DocumentCategories.PersonalFiles)">
+                                <option value="">None</option>
+                                @foreach (var p in projects)
+                                {
+                                    <option value="@p.ProjectId">@p.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="uploadDescription">Description</label>
+                            <textarea id="uploadDescription" class="form-control" rows="2" maxlength="2000" @bind="description" disabled="@uploading"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="uploadTags">Tags</label>
+                            <input id="uploadTags" class="form-control" placeholder="e.g. budget, q3" @bind="tagsText" disabled="@uploading" />
+                            <div class="form-text">Comma-separated, up to 10 tags.</div>
+                        </div>
+                    </div>
+
+                    @if (formError != null)
+                    {
+                        <div class="alert alert-danger mt-3 mb-0">@formError</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" disabled="@uploading" @onclick="CloseAsync">Close</button>
+                    <button type="button" class="btn btn-primary" disabled="@(uploading || !files.Any(CanUpload))" @onclick="UploadAsync">
+                        @if (uploading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                        }
+                        Upload
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop show"></div>
+}
+
+@code {
+    private const int MaxFiles = 10;
+    private const int ChunkSize = 81920;
+
+    [Parameter] public bool Visible { get; set; }
+    [Parameter, EditorRequired] public UserContext User { get; set; } = null!;
+    [Parameter] public int? FixedProjectId { get; set; }
+    // Invoked with true when at least one file was uploaded.
+    [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+    private sealed class PendingFile
+    {
+        public IBrowserFile? File { get; set; }
+        public string Name { get; init; } = string.Empty;
+        public long Size { get; init; }
+        public string Title { get; set; } = string.Empty;
+        public int Progress { get; set; }
+        public string? Error { get; set; }
+        public bool Succeeded { get; set; }
+    }
+
+    private List<PendingFile> files = new();
+    private List<Project> projects = new();
+    private Guid inputKey = Guid.NewGuid();
+    private string category = string.Empty;
+    private int? projectId;
+    private string? description;
+    private string? tagsText;
+    private string? formError;
+    private bool uploading;
+    private bool uploadedAny;
+
+    private int? EffectiveProjectId => FixedProjectId ?? projectId;
+
+    private static bool CanUpload(PendingFile f) => f.File != null && f.Error == null && !f.Succeeded;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Visible && projects.Count == 0)
+            projects = await ProjectService.GetUserProjectsAsync(User.UserId);
+        projectId ??= FixedProjectId;
+    }
+
+    private void OnFilesSelected(InputFileChangeEventArgs e)
+    {
+        formError = null;
+        try
+        {
+            // Capture metadata before any stream is opened.
+            files = e.GetMultipleFiles(MaxFiles).Select(f => new PendingFile
+            {
+                File = f,
+                Name = f.Name,
+                Size = f.Size,
+                Title = Path.GetFileNameWithoutExtension(f.Name),
+                Error = f.Size > DocumentFileRules.MaxFileSizeBytes ? DocumentMessages.TooLarge
+                    : f.Size == 0 ? DocumentMessages.Empty : null
+            }).ToList();
+        }
+        catch (InvalidOperationException)
+        {
+            files = new();
+            formError = $"Select at most {MaxFiles} files at a time.";
+        }
+    }
+
+    private async Task UploadAsync()
+    {
+        formError = null;
+        if (string.IsNullOrEmpty(category))
+        {
+            formError = "Choose a category.";
+            return;
+        }
+
+        uploading = true;
+        var tags = (tagsText ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        foreach (var file in files.Where(CanUpload).ToList())
+        {
+            try
+            {
+                using var buffer = new MemoryStream();
+                await CopyWithProgressAsync(file, buffer);
+                buffer.Position = 0;
+                var originalName = file.Name;
+                file.File = null; // never reuse the browser file reference
+
+                var result = await DocumentService.UploadAsync(new UploadRequest
+                {
+                    Content = buffer,
+                    OriginalFileName = originalName,
+                    Title = file.Title,
+                    Description = description,
+                    Category = category,
+                    ProjectId = category == DocumentCategories.PersonalFiles ? null : EffectiveProjectId,
+                    Tags = tags
+                }, User);
+
+                if (result.Succeeded)
+                {
+                    file.Succeeded = true;
+                    uploadedAny = true;
+                }
+                else
+                {
+                    file.Error = result.Error;
+                }
+            }
+            catch (Exception)
+            {
+                file.Error = "Upload failed. Please try again.";
+            }
+            StateHasChanged();
+        }
+
+        uploading = false;
+        inputKey = Guid.NewGuid(); // force InputFile re-render so the same files can be selected again
+    }
+
+    private async Task CopyWithProgressAsync(PendingFile file, MemoryStream destination)
+    {
+        await using var source = file.File!.OpenReadStream(DocumentFileRules.MaxFileSizeBytes);
+        var chunk = new byte[ChunkSize];
+        long total = 0;
+        int read;
+        while ((read = await source.ReadAsync(chunk)) > 0)
+        {
+            destination.Write(chunk, 0, read);
+            total += read;
+            var progress = file.Size == 0 ? 100 : (int)(total * 100 / file.Size);
+            if (progress != file.Progress)
+            {
+                file.Progress = progress;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        var changed = uploadedAny;
+        files = new();
+        category = string.Empty;
+        projectId = FixedProjectId;
+        description = null;
+        tagsText = null;
+        formError = null;
+        uploadedAny = false;
+        inputKey = Guid.NewGuid();
+        await OnClose.InvokeAsync(changed);
+    }
+}

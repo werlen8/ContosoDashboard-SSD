@@ -17,6 +17,10 @@ public class ApplicationDbContext : DbContext
     public DbSet<Notification> Notifications { get; set; } = null!;
     public DbSet<ProjectMember> ProjectMembers { get; set; } = null!;
     public DbSet<Announcement> Announcements { get; set; } = null!;
+    public DbSet<Document> Documents { get; set; } = null!;
+    public DbSet<DocumentShare> DocumentShares { get; set; } = null!;
+    public DbSet<TaskDocument> TaskDocuments { get; set; } = null!;
+    public DbSet<DocumentActivity> DocumentActivities { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -64,8 +68,86 @@ public class ApplicationDbContext : DbContext
             .HasIndex(u => u.Email)
             .IsUnique();
 
+        ConfigureDocuments(modelBuilder);
+
         // Seed initial data
         SeedData(modelBuilder);
+    }
+
+    private static void ConfigureDocuments(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Document>(e =>
+        {
+            e.HasOne(d => d.UploadedByUser)
+                .WithMany(u => u.UploadedDocuments)
+                .HasForeignKey(d => d.UploadedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(d => d.Project)
+                .WithMany(p => p.Documents)
+                .HasForeignKey(d => d.ProjectId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasIndex(d => d.UploadedByUserId);
+            e.HasIndex(d => d.ProjectId);
+            e.HasIndex(d => d.Category);
+            e.HasIndex(d => d.UploadedDate);
+            e.HasIndex(d => d.FilePath).IsUnique();
+        });
+
+        modelBuilder.Entity<DocumentShare>(e =>
+        {
+            e.HasOne(s => s.Document)
+                .WithMany(d => d.Shares)
+                .HasForeignKey(s => s.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(s => s.SharedWithUser)
+                .WithMany()
+                .HasForeignKey(s => s.SharedWithUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(s => s.SharedByUser)
+                .WithMany()
+                .HasForeignKey(s => s.SharedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasIndex(s => s.SharedWithUserId);
+            e.HasIndex(s => new { s.DocumentId, s.SharedWithUserId }).IsUnique();
+        });
+
+        modelBuilder.Entity<TaskDocument>(e =>
+        {
+            e.HasOne(td => td.Task)
+                .WithMany(t => t.TaskDocuments)
+                .HasForeignKey(td => td.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(td => td.Document)
+                .WithMany(d => d.TaskDocuments)
+                .HasForeignKey(td => td.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(td => td.AttachedByUser)
+                .WithMany()
+                .HasForeignKey(td => td.AttachedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasIndex(td => td.TaskId);
+            e.HasIndex(td => new { td.TaskId, td.DocumentId }).IsUnique();
+        });
+
+        modelBuilder.Entity<DocumentActivity>(e =>
+        {
+            e.HasOne(a => a.User)
+                .WithMany()
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasIndex(a => a.OccurredAt);
+            e.HasIndex(a => a.DocumentId);
+            e.HasIndex(a => a.UserId);
+        });
     }
 
     private void SeedData(ModelBuilder modelBuilder)
@@ -118,6 +200,20 @@ public class ApplicationDbContext : DbContext
                 DisplayName = "Ni Kang",
                 Department = "Engineering",
                 JobTitle = "Software Engineer",
+                Role = UserRole.Employee,
+                AvailabilityStatus = AvailabilityStatus.Available,
+                CreatedDate = DateTime.UtcNow,
+                EmailNotificationsEnabled = true,
+                InAppNotificationsEnabled = true
+            },
+            // Different department, no project membership: used to verify "denied" access scenarios
+            new User
+            {
+                UserId = 5,
+                Email = "avery.smith@contoso.com",
+                DisplayName = "Avery Smith",
+                Department = "Marketing",
+                JobTitle = "Marketing Specialist",
                 Role = UserRole.Employee,
                 AvailabilityStatus = AvailabilityStatus.Available,
                 CreatedDate = DateTime.UtcNow,

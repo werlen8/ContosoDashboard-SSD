@@ -1,0 +1,180 @@
+@inject IDocumentService DocumentService
+
+@if (statusMessage != null)
+{
+    <div class="alert @(statusIsError ? "alert-danger" : "alert-success") alert-dismissible py-2">
+        @statusMessage
+        <button type="button" class="btn-close" aria-label="Dismiss" @onclick="() => statusMessage = null"></button>
+    </div>
+}
+
+@if (Items.Count == 0)
+{
+    <p class="text-muted mb-0">@EmptyMessage</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Uploaded</th>
+                    <th class="text-end">Size</th>
+                    @if (ShowProject)
+                    {
+                        <th>Project</th>
+                    }
+                    @if (ShowUploader)
+                    {
+                        <th>Uploaded by</th>
+                    }
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Items)
+                {
+                    <tr @key="item.DocumentId">
+                        <td>
+                            <strong>@item.Title</strong>
+                            @if (!string.IsNullOrEmpty(item.Tags))
+                            {
+                                <div>
+                                    @foreach (var tag in item.Tags.Split(','))
+                                    {
+                                        <span class="badge bg-light text-dark border me-1">@tag</span>
+                                    }
+                                </div>
+                            }
+                        </td>
+                        <td><span class="badge bg-secondary">@item.Category</span></td>
+                        <td>@FormatDate(item.UploadedDate)</td>
+                        <td class="text-end">@FormatSize(item.FileSizeBytes)</td>
+                        @if (ShowProject)
+                        {
+                            <td>@(item.ProjectName ?? "—")</td>
+                        }
+                        @if (ShowUploader)
+                        {
+                            <td>@item.UploadedByName</td>
+                        }
+                        <td class="text-end text-nowrap">
+                            @if (DocumentFileRules.IsPreviewable(item.FileType))
+                            {
+                                @if (item.FileType == "application/pdf")
+                                {
+                                    @* New tab instead of an iframe keeps X-Frame-Options: DENY intact *@
+                                    <a class="btn btn-sm btn-outline-secondary" title="Preview" aria-label="Preview @item.Title"
+                                       href="@FileUrl(item, preview: true)" target="_blank" rel="noopener"><i class="bi bi-eye"></i></a>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary" title="Preview" aria-label="Preview @item.Title"
+                                            @onclick="() => previewItem = item"><i class="bi bi-eye"></i></button>
+                                }
+                            }
+                            @* The download attribute stops Blazor from intercepting the link as client-side navigation *@
+                            <a class="btn btn-sm btn-outline-primary" title="Download" aria-label="Download @item.Title"
+                               href="@FileUrl(item, preview: false)" download><i class="bi bi-download"></i></a>
+                            @if (item.Permissions.CanEditMetadata)
+                            {
+                                <button class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit @item.Title"
+                                        @onclick="() => editingId = item.DocumentId"><i class="bi bi-pencil"></i></button>
+                            }
+                            @if (item.Permissions.CanDelete)
+                            {
+                                <button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete @item.Title"
+                                        @onclick="() => deletingItem = item"><i class="bi bi-trash"></i></button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (previewItem != null)
+{
+    <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="previewTitle">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="previewTitle">@previewItem.Title</h5>
+                    <button type="button" class="btn-close" aria-label="Close" @onclick="() => previewItem = null"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img src="@FileUrl(previewItem, preview: true)" alt="@previewItem.Title" class="img-fluid" />
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop show"></div>
+}
+
+<DocumentEditDialog Visible="editingId != 0" DocumentId="editingId" User="User" OnClose="OnEditClosedAsync" />
+
+<ConfirmDialog Visible="deletingItem != null" Title="Delete document"
+               Message="@DeleteMessage"
+               OnClose="OnDeleteConfirmedAsync" />
+
+@code {
+    [Parameter, EditorRequired] public List<DocumentListItem> Items { get; set; } = new();
+    [Parameter, EditorRequired] public UserContext User { get; set; } = null!;
+    // Raised after a document was edited, replaced or deleted so the parent can reload.
+    [Parameter] public EventCallback OnChanged { get; set; }
+    [Parameter] public bool ShowProject { get; set; } = true;
+    [Parameter] public bool ShowUploader { get; set; }
+    [Parameter] public string EmptyMessage { get; set; } = "No documents found.";
+
+    private DocumentListItem? previewItem;
+    private DocumentListItem? deletingItem;
+    private int editingId;
+    private string? statusMessage;
+    private bool statusIsError;
+
+    private string DeleteMessage => $"Permanently delete \"{deletingItem?.Title}\"? This cannot be undone.";
+
+    private static string FileUrl(DocumentListItem item, bool preview) =>
+        $"/documents/{item.DocumentId}/file" + (preview ? "?mode=preview" : string.Empty);
+
+    private async Task OnEditClosedAsync(bool changed)
+    {
+        editingId = 0;
+        if (changed)
+        {
+            SetStatus("Document updated.", isError: false);
+            await OnChanged.InvokeAsync();
+        }
+    }
+
+    private async Task OnDeleteConfirmedAsync(bool confirmed)
+    {
+        var item = deletingItem;
+        deletingItem = null;
+        if (!confirmed || item == null) return;
+
+        var result = await DocumentService.DeleteAsync(item.DocumentId, User);
+        SetStatus(result.Succeeded ? $"\"{item.Title}\" was deleted." : result.Error, !result.Succeeded);
+        if (result.Succeeded) await OnChanged.InvokeAsync();
+    }
+
+    private void SetStatus(string? message, bool isError)
+    {
+        statusMessage = message;
+        statusIsError = isError;
+    }
+
+    public static string FormatSize(long bytes) => bytes switch
+    {
+        >= 1024 * 1024 => $"{bytes / 1024d / 1024d:0.0} MB",
+        >= 1024 => $"{bytes / 1024d:0} KB",
+        _ => $"{bytes} B"
+    };
+
+    // SQLite returns DateTime with Kind=Unspecified; values are stored as UTC.
+    public static string FormatDate(DateTime utc) =>
+        DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime().ToString("MMM dd, yyyy HH:mm");
+}
