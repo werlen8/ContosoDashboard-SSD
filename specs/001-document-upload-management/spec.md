@@ -5,6 +5,16 @@
 **Status**: Draft  
 **Input**: User description: "--file StakeholderDocs/document-upload-and-management-feature.md" — stakeholder requirements for adding document upload, organization, sharing, and management capabilities to ContosoDashboard.
 
+## Clarifications
+
+### Session 2026-10-20
+
+- Q: How should malware scanning work, given the app must run fully offline with no cloud services? → A: Pluggable scanning step; the built-in training scanner rejects known test signatures (EICAR) and blocked content patterns; a real engine can be plugged in later without changing user-facing behavior.
+- Q: Should Team Leads be able to see and manage their team members' documents in the "Personal Files" category? → A: No. Team Leads may view, edit metadata of, and delete team members' documents in every category except "Personal Files", which only the owner and Administrators can access.
+- Q: When a document is shared with a team, should people who join that team later also get access? → A: No. A team share is a snapshot: it grants access to each user in the team at the time of sharing; later joiners do not gain access, and each resulting share can be revoked individually.
+- Q: Can a document in the "Personal Files" category also be linked to a project (or attached to a task)? → A: No. "Personal Files" documents cannot be associated with a project or attached to a task; the category must be changed first.
+- Q: What should happen when someone attaches a document that's already linked to Project Y to a task in Project X? → A: Blocked. Only documents with no project, or already linked to the task's project, can be attached; documents with no project become linked to the task's project.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Upload and View My Documents (Priority: P1)
@@ -22,11 +32,12 @@ An employee uploads one or more work documents from their computer, giving each 
 3. **Given** a logged-in employee, **When** they select a 30 MB file, **Then** the upload is rejected with a clear message stating the 25 MB limit and no document is created.
 4. **Given** a logged-in employee, **When** they select an unsupported file (e.g., an executable), **Then** the upload is rejected with a message listing supported file types.
 5. **Given** a logged-in employee, **When** they submit without a title or category, **Then** the upload is blocked and the missing fields are indicated.
-6. **Given** a file that the malware scan flags as infected, **When** the employee uploads it, **Then** the upload is rejected with a clear message and the file is not stored.
+6. **Given** a file containing the EICAR anti-malware test signature, **When** the employee uploads it, **Then** the upload is rejected with a clear message and the file is not stored.
 7. **Given** an employee who is not a member of Project X, **When** they attempt to upload a document associated with Project X, **Then** the upload is denied and no document is created (authorization – denied).
 8. **Given** an employee who is a member of Project X, **When** they upload a document associated with Project X, **Then** the upload succeeds and the document is associated with Project X (authorization – allowed).
 9. **Given** an employee with 20 documents in "My Documents", **When** they sort by file size or filter by category, project, or upload date range, **Then** the list reflects the chosen sort and filters.
 10. **Given** Employee A has uploaded a "Personal Files" document, **When** Employee B (same role, different team, not shared) opens "My Documents" or attempts to open that document directly, **Then** Employee B cannot see or open it.
+11. **Given** Employee A (in Team T) has uploaded a "Reports" document and a "Personal Files" document, **When** the Team Lead of Team T browses or searches, **Then** the Team Lead can see and manage the "Reports" document but cannot see or open the "Personal Files" document (authorization – allowed and denied).
 
 ---
 
@@ -112,8 +123,9 @@ While viewing a task, a user sees documents attached to that task, attaches exis
 **Acceptance Scenarios**:
 
 1. **Given** a user viewing a task they can access in Project X, **When** they upload a document from the task, **Then** the document is attached to the task and associated with Project X.
-2. **Given** a user viewing a task, **When** they attach an existing document they can access, **Then** it appears in the task's document list and becomes associated with the task's project.
-3. **Given** a user who cannot access a task, **When** they attempt to view or attach documents to it, **Then** the action is denied (authorization – denied).
+2. **Given** a user viewing a task in Project X, **When** they attach an existing document they can access that has no project or is already in Project X, **Then** it appears in the task's document list and is associated with Project X.
+3. **Given** a user viewing a task in Project X, **When** they try to attach a document associated with Project Y, **Then** the attachment is blocked with a message and the document's project is unchanged.
+4. **Given** a user who cannot access a task, **When** they attempt to view or attach documents to it, **Then** the action is denied (authorization – denied).
 
 ---
 
@@ -158,6 +170,7 @@ The system records every document upload, download, metadata edit, file replacem
 - If storing the file fails, no document record is created; if saving the record fails, the stored file is removed — no orphaned records or files remain.
 - In a multi-file upload where some files fail validation, valid files are uploaded and each failed file shows its specific error.
 - Two documents may share the same title; each remains a distinct document.
+- A user who chooses category "Personal Files" together with a project (or uploads from a task) is blocked with a message to pick another category; changing an existing project document's category to "Personal Files" is blocked until the project link is removed.
 - If a user loses project membership, they lose access to that project's documents they did not upload; documents they uploaded remain accessible to them as owner.
 - Deleting a document also removes its shares and task attachments; recipients no longer see it, and existing notifications pointing to it lead to a "document no longer available" message.
 - Sharing a document with a user who already has access, or with oneself, has no effect and produces no duplicate notification.
@@ -174,12 +187,13 @@ The system records every document upload, download, metadata edit, file replacem
 - **FR-002**: System MUST accept only these file types: PDF; Microsoft Word, Excel, and PowerPoint (legacy and current formats); plain text; JPEG; PNG.
 - **FR-003**: System MUST reject any file larger than 25 MB or empty, with a clear message stating the reason.
 - **FR-004**: System MUST verify that a file's content is consistent with its declared type and reject mismatches.
-- **FR-005**: System MUST scan every uploaded file for viruses and malware before it is stored, and MUST reject the file if it is flagged or if the scan cannot be completed.
+- **FR-005**: System MUST scan every uploaded file for viruses and malware before it is stored, and MUST reject the file if it is flagged or if the scan cannot be completed. The scanning step MUST be replaceable; the built-in offline training scanner MUST at minimum reject files containing the standard EICAR anti-malware test signature and any configured blocked content patterns.
 - **FR-006**: System MUST show upload progress and a success or error result for each file.
 - **FR-007**: Users MUST provide a title (required, max 200 characters) and a category (required) chosen from: Project Documents, Team Resources, Personal Files, Reports, Presentations, Other.
 - **FR-008**: Users MAY provide a description (max 2,000 characters), an associated project, and up to 10 free-text tags (max 50 characters each).
 - **FR-009**: System MUST automatically record upload date and time, uploader, file size, file type (full media type, which may be long for Office formats), and original file name.
 - **FR-010**: System MUST allow a user to associate a document with a project only if the user is a member or the Project Manager of that project (Administrators excepted).
+- **FR-010a**: System MUST reject associating a "Personal Files" document with a project or attaching it to a task, at upload, metadata edit, or attachment time, with a message asking the user to choose another category first.
 - **FR-011**: Uploading a single document MUST require no more than 3 clicks after the required fields are filled.
 
 **Storage & Security**
@@ -198,7 +212,7 @@ The system records every document upload, download, metadata edit, file replacem
   | Uploader (owner) | Yes | Yes | Yes | Yes |
   | Project member (doc associated with their project) | Yes | No | No | No |
   | Project Manager (doc associated with their project) | Yes | Edit metadata only | Yes | No |
-  | Team Lead (doc uploaded by a member of their team) | Yes | Edit metadata only | Yes | No |
+  | Team Lead (doc uploaded by a member of their team, any category except "Personal Files") | Yes | Edit metadata only | Yes | No |
   | Share recipient | Yes | No | No | No |
   | Administrator | Yes (all documents) | Edit metadata only | Yes | No |
   | Anyone else | No | No | No | No |
@@ -221,7 +235,7 @@ The system records every document upload, download, metadata edit, file replacem
 
 **Sharing & Notifications**
 
-- **FR-027**: Owners MUST be able to share a document with one or more specific users and/or with one or more teams; sharing with a team grants access to each user in that team at the time of sharing.
+- **FR-027**: Owners MUST be able to share a document with one or more specific users and/or with one or more teams; sharing with a team grants access to each user in that team at the time of sharing (snapshot); users who join the team later do not gain access, and users who leave the team keep access until the share is revoked.
 - **FR-028**: Owners MUST be able to revoke a share, removing the recipient's access immediately.
 - **FR-029**: System MUST send an in-app notification to each new share recipient.
 - **FR-030**: System MUST send an in-app notification to every member of a project (except the uploader) when a document is added to that project.
@@ -229,7 +243,7 @@ The system records every document upload, download, metadata edit, file replacem
 **Task & Dashboard Integration**
 
 - **FR-031**: Task detail views MUST list attached documents and allow users with task access to attach existing accessible documents or upload a new document.
-- **FR-032**: A document attached to a task MUST be automatically associated with the task's project.
+- **FR-032**: A document attached to a task MUST be associated with the task's project: a document with no project becomes associated with the task's project; a document already associated with a different project MUST NOT be attached, and the user MUST see a clear message explaining why.
 - **FR-033**: The dashboard home page MUST show a "Recent Documents" widget with the user's 5 most recently uploaded documents, newest first.
 - **FR-034**: The dashboard summary cards MUST include the count of documents the user has uploaded.
 
@@ -273,12 +287,12 @@ The system records every document upload, download, metadata edit, file replacem
 ## Assumptions
 
 - "Team" means the users who share the same department as recorded on their user profile; a Team Lead's team is the users in the Team Lead's department.
-- Team Leads may view, download, edit metadata of, and delete documents uploaded by members of their team, including "Personal Files" documents, per the stakeholder statement that Team Leads "view/manage documents uploaded by their team members".
+- Team Leads may view, download, edit metadata of, and delete documents uploaded by members of their team, except documents in the "Personal Files" category, which remain private to the owner (plus Administrators for audit) unless explicitly shared.
 - Only the owner may share a document or replace its file; Project Managers, Team Leads, and Administrators manage metadata and deletion but do not re-share or replace.
 - In multi-file uploads, category, project, description, and tags apply to the whole batch; each file gets its own title, defaulting to its file name without extension and editable before submission.
 - Documents an uploader associated with a project remain accessible to that uploader even if they later leave the project.
 - Team shares are resolved to individual users at the time of sharing; users joining the team later do not automatically gain access.
-- Malware scanning is provided by a locally available scanning capability that works offline; in training environments a simple local scanner is acceptable as long as the scan step cannot be skipped.
+- The built-in training scanner is not a production-grade antivirus; this is a documented training limitation, and a real scanning engine is expected to be plugged in for production.
 - The "document count" summary card counts documents the user uploaded (not all documents they can access).
 - Existing in-app notifications and existing role/department claims from the current mock login are reused; no email notifications are sent.
 - Most documents are under 10 MB; local disk space is available in training environments.
